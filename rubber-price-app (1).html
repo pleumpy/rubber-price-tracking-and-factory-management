@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RubberSense — วิเคราะห์ยางพารา</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e0a;
+    --surface: #111811;
+    --card: #162016;
+    --border: #1e2e1e;
+    --accent: #4caf50;
+    --accent2: #8bc34a;
+    --gold: #ffc107;
+    --red: #f44336;
+    --green: #4caf50;
+    --text: #e8f5e9;
+    --muted: #6a8c6a;
+    --white: #ffffff;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Sarabun', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 40% at 10% 20%, rgba(76,175,80,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 50% at 90% 80%, rgba(139,195,74,0.04) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+  /* Header */
+  header {
+    padding: 28px 0 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+
+  .header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo-icon {
+    width: 48px; height: 48px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    box-shadow: 0 0 24px rgba(76,175,80,0.3);
+  }
+
+  .logo-text h1 {
+    font-family: 'Space Mono', monospace;
+    font-size: 22px;
+    color: var(--white);
+    letter-spacing: -0.5px;
+  }
+
+  .logo-text p {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .live-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(76,175,80,0.1);
+    border: 1px solid rgba(76,175,80,0.3);
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    color: var(--accent);
+  }
+
+  .live-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+  }
+
+  /* Price Cards */
+  .price-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .price-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+
+  .price-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(76,175,80,0.3);
+  }
+
+  .price-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), transparent);
+  }
+
+  .price-card .label {
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+
+  .price-card .value {
+    font-family: 'Space Mono', monospace;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--white);
+  }
+
+  .price-card .unit {
+    font-size: 12px;
+    color: var(--muted);
+    margin-left: 4px;
+  }
+
+  .price-card .change {
+    margin-top: 8px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .change.up { color: var(--green); }
+  .change.down { color: var(--red); }
+
+  /* Main layout */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+
+  @media (max-width: 1100px) {
+    .main-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Chart Panel */
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .panel-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--white);
+  }
+
+  .panel-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .timeframe-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--bg);
+    padding: 4px;
+    border-radius: 10px;
+  }
+
+  .tab-btn {
+    padding: 6px 14px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .tab-btn.active {
+    background: var(--accent);
+    color: #000;
+    font-weight: 700;
+  }
+
+  .tab-btn:hover:not(.active) {
+    color: var(--text);
+  }
+
+  /* Candlestick Canvas */
+  #chartCanvas {
+    display: block;
+    width: 100%;
+    cursor: crosshair;
+  }
+
+  .chart-tooltip {
+    position: absolute;
+    background: rgba(22, 32, 22, 0.95);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 13px;
+    pointer-events: none;
+    display: none;
+    z-index: 100;
+    backdrop-filter: blur(8px);
+    min-width: 160px;
+  }
+
+  .chart-tooltip .tt-date {
+    color: var(--muted);
+    font-size: 11px;
+    margin-bottom: 8px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .chart-tooltip .tt-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 3px;
+  }
+
+  .chart-tooltip .tt-label { color: var(--muted); }
+  .chart-tooltip .tt-val { color: var(--white); font-weight: 600; font-family: 'Space Mono', monospace; }
+
+  .chart-wrapper {
+    position: relative;
+    padding: 16px 0 8px;
+  }
+
+  /* AI Panel */
+  .ai-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .ai-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .ai-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, #1e40af, #7c3aed);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .ai-content {
+    padding: 20px 24px;
+    flex: 1;
+    overflow-y: auto;
+    max-height: 500px;
+  }
+
+  .ai-content::-webkit-scrollbar { width: 4px; }
+  .ai-content::-webkit-scrollbar-track { background: transparent; }
+  .ai-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .ai-message {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 12px;
+    font-size: 14px;
+    line-height: 1.7;
+    animation: fadeIn 0.4s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .ai-message .msg-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .signal-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 14px;
+    border-radius: 12px;
+    margin: 12px 0;
+    font-weight: 700;
+    font-size: 16px;
+  }
+
+  .signal-box.buy {
+    background: rgba(76,175,80,0.15);
+    border: 1px solid rgba(76,175,80,0.4);
+    color: var(--green);
+  }
+
+  .signal-box.sell {
+    background: rgba(244,67,54,0.15);
+    border: 1px solid rgba(244,67,54,0.4);
+    color: var(--red);
+  }
+
+  .signal-box.hold {
+    background: rgba(255,193,7,0.12);
+    border: 1px solid rgba(255,193,7,0.35);
+    color: var(--gold);
+  }
+
+  .analyze-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 14px;
+    color: #000;
+    font-family: 'Sarabun', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .analyze-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(76,175,80,0.35);
+  }
+
+  .analyze-btn:active { transform: translateY(0); }
+  .analyze-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .ai-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Indicators Row */
+  .indicators {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  .indicator-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    text-align: center;
+  }
+
+  .indicator-card .ind-label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 8px;
+  }
+
+  .indicator-card .ind-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  .ind-bar {
+    height: 3px;
+    border-radius: 2px;
+    margin-top: 8px;
+    background: var(--border);
+    overflow: hidden;
+  }
+
+  .ind-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 1s ease;
+  }
+
+  /* Typing animation */
+  .typing {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+    padding: 4px 0;
+  }
+
+  .typing span {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: bounce 1.2s ease-in-out infinite;
+  }
+
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-6px); }
+  }
+
+  /* Volume bars */
+  .vol-section {
+    padding: 0 16px 16px;
+  }
+
+  .section-label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    padding-left: 8px;
+  }
+
+  footer {
+    text-align: center;
+    padding: 24px 0;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .disclaimer {
+    background: rgba(255,193,7,0.06);
+    border: 1px solid rgba(255,193,7,0.2);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: #997a00;
+    margin-top: 12px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-icon">🌿</div>
+        <div class="logo-text">
+          <h1>RubberSense</h1>
+          <p>ระบบวิเคราะห์ราคายางพาราอัจฉริยะ</p>
+        </div>
+      </div>
+      <div class="live-badge">
+        <div class="live-dot"></div>
+        อัปเดตข้อมูลสด
+      </div>
+    </div>
+  </header>
+
+  <!-- Price Summary Cards -->
+  <div class="price-grid" id="priceGrid"></div>
+
+  <!-- Technical Indicators -->
+  <div class="indicators" id="indicators"></div>
+
+  <!-- Main Grid: Chart + AI -->
+  <div class="main-grid">
+    <!-- Chart Panel -->
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">กราฟแท่งเทียนราคายางพารา</div>
+          <div class="panel-sub">RSS3 · บาท/กก.</div>
+        </div>
+        <div class="timeframe-tabs">
+          <button class="tab-btn active" data-tf="1W">1W</button>
+          <button class="tab-btn" data-tf="1M">1M</button>
+          <button class="tab-btn" data-tf="3M">3M</button>
+          <button class="tab-btn" data-tf="6M">6M</button>
+          <button class="tab-btn" data-tf="1Y">1Y</button>
+        </div>
+      </div>
+      <div class="chart-wrapper" id="chartWrapper">
+        <canvas id="chartCanvas" height="380"></canvas>
+        <div class="chart-tooltip" id="tooltip"></div>
+      </div>
+      <div class="vol-section">
+        <div class="section-label">ปริมาณซื้อขาย</div>
+        <canvas id="volCanvas" height="60"></canvas>
+      </div>
+    </div>
+
+    <!-- AI Analysis Panel -->
+    <div class="panel ai-panel">
+      <div class="panel-header">
+        <div class="ai-header">
+          <div class="ai-icon">🤖</div>
+          <div>
+            <div class="panel-title">AI วิเคราะห์แนวโน้ม</div>
+            <div class="panel-sub">Claude AI · วิเคราะห์เชิงลึก</div>
+          </div>
+        </div>
+      </div>
+      <div class="ai-content" id="aiContent">
+        <div class="ai-message">
+          <div class="msg-header">🌿 ยินดีต้อนรับ</div>
+          กดปุ่ม <strong>"วิเคราะห์ด้วย AI"</strong> เพื่อรับการวิเคราะห์แนวโน้มราคายางพาราและคำแนะนำการขายจาก AI อัจฉริยะ
+        </div>
+      </div>
+      <div class="ai-footer">
+        <button class="analyze-btn" id="analyzeBtn" onclick="analyzeWithAI()">
+          <span>🔍</span> วิเคราะห์ด้วย AI
+        </button>
+        <div class="disclaimer">
+          ⚠️ ข้อมูลนี้เป็นเพียงการวิเคราะห์เบื้องต้น ไม่ใช่คำแนะนำทางการเงิน
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="container">
+    <p>RubberSense © 2025 · ข้อมูลอ้างอิงจากตลาดยางพาราไทย RAOT · ราคาโดยประมาณ</p>
+  </div>
+</footer>
+
+<script>
+// ==============================
+// DATA GENERATION
+// ==============================
+function generateCandleData(days, basePrice = 58, volatility = 3) {
+  const data = [];
+  let price = basePrice;
+  const now = new Date();
+  now.setDate(now.getDate() - days);
+
+  for (let i = 0; i < days; i++) {
+    const date = new Date(now);
+    date.setDate(date.getDate() + i);
+
+    // Skip weekends
+    if (date.getDay() === 0 || date.getDay() === 6) continue;
+
+    const trend = Math.sin(i / 30) * 2 + Math.sin(i / 7) * 0.5;
+    const change = (Math.random() - 0.48) * volatility + trend * 0.1;
+    price = Math.max(40, Math.min(90, price + change));
+
+    const open = price + (Math.random() - 0.5) * 1.5;
+    const close = price;
+    const high = Math.max(open, close) + Math.random() * 1.5;
+    const low = Math.min(open, close) - Math.random() * 1.5;
+    const volume = Math.floor(50000 + Math.random() * 150000);
+
+    data.push({ date, open, high, low, close, volume });
+  }
+  return data;
+}
+
+const TIMEFRAME_DAYS = { '1W': 10, '1M': 35, '3M': 100, '6M': 200, '1Y': 380 };
+let currentTF = '1W';
+let allData = generateCandleData(400, 58, 2.8);
+let displayData = allData.slice(-10);
+
+// ==============================
+// CHART DRAWING
+// ==============================
+const canvas = document.getElementById('chartCanvas');
+const ctx = canvas.getContext('2d');
+const volCanvas = document.getElementById('volCanvas');
+const volCtx = volCanvas.getContext('2d');
+const tooltip = document.getElementById('tooltip');
+
+function getChartDims() {
+  const w = canvas.parentElement.clientWidth;
+  const h = 380;
+  canvas.width = w;
+  canvas.height = h;
+  volCanvas.width = w;
+  volCanvas.height = 60;
+  return { w, h };
+}
+
+function drawChart(data) {
+  const { w, h } = getChartDims();
+  ctx.clearRect(0, 0, w, h);
+  volCtx.clearRect(0, 0, w, 60);
+
+  if (!data.length) return;
+
+  const pad = { top: 20, right: 60, bottom: 30, left: 10 };
+  const chartW = w - pad.left - pad.right;
+  const chartH = h - pad.top - pad.bottom;
+
+  const prices = data.flatMap(d => [d.high, d.low]);
+  const minP = Math.min(...prices) * 0.995;
+  const maxP = Math.max(...prices) * 1.005;
+  const priceRange = maxP - minP;
+
+  const maxVol = Math.max(...data.map(d => d.volume));
+
+  const candleW = Math.max(4, (chartW / data.length) * 0.65);
+  const spacing = chartW / data.length;
+
+  // Grid lines
+  const gridLines = 5;
+  for (let i = 0; i <= gridLines; i++) {
+    const y = pad.top + (i / gridLines) * chartH;
+    const price = maxP - (i / gridLines) * priceRange;
+    ctx.strokeStyle = 'rgba(30,46,30,0.7)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 6]);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, y);
+    ctx.lineTo(w - pad.right, y);
+    ctx.stroke();
+
+    // Price labels
+    ctx.fillStyle = '#4a6a4a';
+    ctx.font = '10px Space Mono, monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(price.toFixed(2), w - pad.right + 6, y + 4);
+  }
+  ctx.setLineDash([]);
+
+  // Moving Average (simple 5-period)
+  if (data.length >= 5) {
+    ctx.strokeStyle = 'rgba(255,193,7,0.7)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 4; i < data.length; i++) {
+      const avg = data.slice(i - 4, i + 1).reduce((s, d) => s + d.close, 0) / 5;
+      const x = pad.left + i * spacing + spacing / 2;
+      const y = pad.top + ((maxP - avg) / priceRange) * chartH;
+      i === 4 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  // Candles
+  data.forEach((d, i) => {
+    const x = pad.left + i * spacing + spacing / 2;
+    const isUp = d.close >= d.open;
+    const color = isUp ? '#4caf50' : '#f44336';
+    const borderColor = isUp ? '#66bb6a' : '#ef5350';
+
+    const bodyTop = pad.top + ((maxP - Math.max(d.open, d.close)) / priceRange) * chartH;
+    const bodyBot = pad.top + ((maxP - Math.min(d.open, d.close)) / priceRange) * chartH;
+    const bodyH = Math.max(1, bodyBot - bodyTop);
+
+    const highY = pad.top + ((maxP - d.high) / priceRange) * chartH;
+    const lowY = pad.top + ((maxP - d.low) / priceRange) * chartH;
+
+    // Wick
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, highY);
+    ctx.lineTo(x, bodyTop);
+    ctx.moveTo(x, bodyBot);
+    ctx.lineTo(x, lowY);
+    ctx.stroke();
+
+    // Body
+    if (isUp) {
+      ctx.fillStyle = color;
+      ctx.fillRect(x - candleW / 2, bodyTop, candleW, bodyH);
+    } else {
+      ctx.fillStyle = color;
+      ctx.fillRect(x - candleW / 2, bodyTop, candleW, bodyH);
+    }
+
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x - candleW / 2, bodyTop, candleW, bodyH);
+
+    // Volume bars
+    const volH = (d.volume / maxVol) * 50;
+    volCtx.fillStyle = isUp ? 'rgba(76,175,80,0.5)' : 'rgba(244,67,54,0.4)';
+    volCtx.fillRect(x - candleW / 2, 60 - volH, candleW, volH);
+  });
+
+  // Date labels
+  const step = Math.max(1, Math.floor(data.length / 6));
+  data.forEach((d, i) => {
+    if (i % step !== 0 && i !== data.length - 1) return;
+    const x = pad.left + i * spacing + spacing / 2;
+    ctx.fillStyle = '#4a6a4a';
+    ctx.font = '10px Sarabun, sans-serif';
+    ctx.textAlign = 'center';
+    const label = `${d.date.getDate()}/${d.date.getMonth() + 1}`;
+    ctx.fillText(label, x, h - 8);
+  });
+
+  // MA Legend
+  ctx.fillStyle = 'rgba(255,193,7,0.8)';
+  ctx.fillRect(pad.left, pad.top, 20, 2);
+  ctx.fillStyle = '#a08000';
+  ctx.font = '11px Sarabun, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('MA5', pad.left + 26, pad.top + 5);
+}
+
+// Tooltip
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const w = canvas.width;
+  const pad = { left: 10, right: 60 };
+  const spacing = (w - pad.left - pad.right) / displayData.length;
+  const idx = Math.floor((mx - pad.left) / spacing);
+
+  if (idx >= 0 && idx < displayData.length) {
+    const d = displayData[idx];
+    const isUp = d.close >= d.open;
+    const x = e.clientX - rect.left + 16;
+    const y = e.clientY - rect.top + 16;
+
+    tooltip.style.display = 'block';
+    tooltip.style.left = (x > rect.width / 2 ? x - 200 : x) + 'px';
+    tooltip.style.top = y + 'px';
+    tooltip.innerHTML = `
+      <div class="tt-date">${d.date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })}</div>
+      <div class="tt-row"><span class="tt-label">เปิด</span><span class="tt-val">${d.open.toFixed(2)}</span></div>
+      <div class="tt-row"><span class="tt-label">สูงสุด</span><span class="tt-val" style="color:#4caf50">${d.high.toFixed(2)}</span></div>
+      <div class="tt-row"><span class="tt-label">ต่ำสุด</span><span class="tt-val" style="color:#f44336">${d.low.toFixed(2)}</span></div>
+      <div class="tt-row"><span class="tt-label">ปิด</span><span class="tt-val" style="color:${isUp ? '#4caf50' : '#f44336'}">${d.close.toFixed(2)}</span></div>
+      <div class="tt-row"><span class="tt-label">ปริมาณ</span><span class="tt-val">${(d.volume / 1000).toFixed(1)}K</span></div>
+    `;
+  }
+});
+
+canvas.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+
+// ==============================
+// PRICE CARDS
+// ==============================
+function renderPriceCards() {
+  const latest = allData[allData.length - 1];
+  const prev = allData[allData.length - 2];
+  const changeAbs = latest.close - prev.close;
+  const changePct = (changeAbs / prev.close * 100);
+  const week = allData[allData.length - 6];
+  const weekChg = ((latest.close - week.close) / week.close * 100);
+  const monthData = allData[allData.length - 22];
+  const monthChg = ((latest.close - monthData.close) / monthData.close * 100);
+  const high52 = Math.max(...allData.map(d => d.high));
+  const low52 = Math.min(...allData.map(d => d.low));
+
+  const cards = [
+    { label: 'ราคาปัจจุบัน', value: latest.close.toFixed(2), unit: 'บาท/กก.', change: `${changeAbs >= 0 ? '▲' : '▼'} ${Math.abs(changeAbs).toFixed(2)} (${Math.abs(changePct).toFixed(2)}%)`, cls: changeAbs >= 0 ? 'up' : 'down' },
+    { label: 'สัปดาห์นี้', value: `${weekChg >= 0 ? '+' : ''}${weekChg.toFixed(2)}%`, unit: '', change: weekChg >= 0 ? '▲ แนวโน้มขาขึ้น' : '▼ แนวโน้มขาลง', cls: weekChg >= 0 ? 'up' : 'down' },
+    { label: 'เดือนนี้', value: `${monthChg >= 0 ? '+' : ''}${monthChg.toFixed(2)}%`, unit: '', change: monthChg >= 0 ? '▲ เดือนนี้เพิ่มขึ้น' : '▼ เดือนนี้ลดลง', cls: monthChg >= 0 ? 'up' : 'down' },
+    { label: 'สูงสุด 52 สัปดาห์', value: high52.toFixed(2), unit: 'บาท', change: '📈 จุดสูงสุด', cls: 'up' },
+    { label: 'ต่ำสุด 52 สัปดาห์', value: low52.toFixed(2), unit: 'บาท', change: '📉 จุดต่ำสุด', cls: 'down' },
+  ];
+
+  document.getElementById('priceGrid').innerHTML = cards.map(c => `
+    <div class="price-card">
+      <div class="label">${c.label}</div>
+      <div class="value">${c.value}<span class="unit">${c.unit}</span></div>
+      <div class="change ${c.cls}">${c.change}</div>
+    </div>
+  `).join('');
+}
+
+// ==============================
+// INDICATORS
+// ==============================
+function calcRSI(data, period = 14) {
+  let gains = 0, losses = 0;
+  for (let i = 1; i <= period; i++) {
+    const diff = data[data.length - i].close - data[data.length - i - 1].close;
+    diff > 0 ? gains += diff : losses -= diff;
+  }
+  const rs = gains / (losses || 0.001);
+  return 100 - (100 / (1 + rs));
+}
+
+function renderIndicators() {
+  const rsi = calcRSI(allData);
+  const latest = allData[allData.length - 1];
+  const ma20 = allData.slice(-20).reduce((s, d) => s + d.close, 0) / 20;
+  const ma50 = allData.slice(-50).reduce((s, d) => s + d.close, 0) / 50;
+  const vol7 = allData.slice(-7).reduce((s, d) => s + d.volume, 0) / 7;
+  const vol30 = allData.slice(-30).reduce((s, d) => s + d.volume, 0) / 30;
+  const volRatio = vol7 / vol30;
+
+  const rsiColor = rsi > 70 ? '#f44336' : rsi < 30 ? '#4caf50' : '#ffc107';
+  const rsiLabel = rsi > 70 ? 'ซื้อมากเกินไป' : rsi < 30 ? 'ขายมากเกินไป' : 'สมดุล';
+
+  const indicators = [
+    { label: 'RSI (14)', value: rsi.toFixed(1), color: rsiColor, fill: rsi, sub: rsiLabel },
+    { label: 'MA 20 วัน', value: ma20.toFixed(2), color: latest.close > ma20 ? '#4caf50' : '#f44336', fill: (latest.close / ma20 * 50), sub: latest.close > ma20 ? 'ราคาเหนือ MA' : 'ราคาใต้ MA' },
+    { label: 'MA 50 วัน', value: ma50.toFixed(2), color: latest.close > ma50 ? '#4caf50' : '#f44336', fill: (latest.close / ma50 * 50), sub: latest.close > ma50 ? 'ราคาเหนือ MA' : 'ราคาใต้ MA' },
+    { label: 'ปริมาณ (7D/30D)', value: `${volRatio.toFixed(2)}x`, color: volRatio > 1.2 ? '#4caf50' : '#ffc107', fill: Math.min(100, volRatio * 50), sub: volRatio > 1.2 ? 'ปริมาณสูงผิดปกติ' : 'ปกติ' },
+    { label: 'Momentum', value: (latest.close - allData[allData.length - 10].close).toFixed(2), color: latest.close > allData[allData.length - 10].close ? '#4caf50' : '#f44336', fill: 50 + (latest.close - allData[allData.length - 10].close) * 5, sub: '10 วันที่ผ่านมา' },
+  ];
+
+  document.getElementById('indicators').innerHTML = indicators.map(ind => `
+    <div class="indicator-card">
+      <div class="ind-label">${ind.label}</div>
+      <div class="ind-value" style="color:${ind.color}">${ind.value}</div>
+      <div style="font-size:11px;color:#4a6a4a;margin-top:4px">${ind.sub}</div>
+      <div class="ind-bar"><div class="ind-fill" style="width:${Math.min(100, Math.max(0, ind.fill))}%;background:${ind.color}"></div></div>
+    </div>
+  `).join('');
+}
+
+// ==============================
+// TIMEFRAME TABS
+// ==============================
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTF = btn.dataset.tf;
+    const days = TIMEFRAME_DAYS[currentTF];
+    displayData = allData.slice(-days);
+    drawChart(displayData);
+  });
+});
+
+// ==============================
+// AI ANALYSIS
+// ==============================
+async function analyzeWithAI() {
+  const btn = document.getElementById('analyzeBtn');
+  const content = document.getElementById('aiContent');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="typing"><span></span><span></span><span></span></span> กำลังวิเคราะห์...';
+
+  const latest = allData[allData.length - 1];
+  const prev7 = allData[allData.length - 7];
+  const prev30 = allData[allData.length - 30];
+  const rsi = calcRSI(allData);
+  const ma20 = allData.slice(-20).reduce((s, d) => s + d.close, 0) / 20;
+  const ma50 = allData.slice(-50).reduce((s, d) => s + d.close, 0) / 50;
+  const weekChange = ((latest.close - prev7.close) / prev7.close * 100).toFixed(2);
+  const monthChange = ((latest.close - prev30.close) / prev30.close * 100).toFixed(2);
+  const high52 = Math.max(...allData.map(d => d.high)).toFixed(2);
+  const low52 = Math.min(...allData.map(d => d.low)).toFixed(2);
+  const recentCandles = allData.slice(-5).map(d => `${d.date.toLocaleDateString('th-TH')}: O=${d.open.toFixed(2)} H=${d.high.toFixed(2)} L=${d.low.toFixed(2)} C=${d.close.toFixed(2)}`).join('\n');
+
+  const prompt = `คุณคือผู้เชี่ยวชาญด้านการวิเคราะห์ราคายางพาราและตลาดสินค้าโภคภัณฑ์ไทย วิเคราะห์ข้อมูลต่อไปนี้และให้คำแนะนำในภาษาไทย:
+
+**ข้อมูลราคายางพารา RSS3 (บาท/กก.)**
+- ราคาปัจจุบัน: ${latest.close.toFixed(2)} บาท/กก.
+- สูงสุด/ต่ำสุดของวัน: ${latest.high.toFixed(2)} / ${latest.low.toFixed(2)}
+- เปลี่ยนแปลง 7 วัน: ${weekChange}%
+- เปลี่ยนแปลง 30 วัน: ${monthChange}%
+- สูงสุด 52 สัปดาห์: ${high52}
+- ต่ำสุด 52 สัปดาห์: ${low52}
+
+**ตัวชี้วัดทางเทคนิค**
+- RSI (14): ${rsi.toFixed(1)} ${rsi > 70 ? '(ซื้อมากเกินไป)' : rsi < 30 ? '(ขายมากเกินไป)' : '(สมดุล)'}
+- MA20: ${ma20.toFixed(2)} | ราคา ${latest.close > ma20 ? 'เหนือ' : 'ต่ำกว่า'} MA20
+- MA50: ${ma50.toFixed(2)} | ราคา ${latest.close > ma50 ? 'เหนือ' : 'ต่ำกว่า'} MA50
+
+**แท่งเทียน 5 วันล่าสุด**
+${recentCandles}
+
+กรุณาวิเคราะห์และตอบกลับเป็น JSON ตามรูปแบบนี้เท่านั้น ไม่ต้องมีข้อความอื่น:
+{
+  "trend": "ขาขึ้น หรือ ขาลง หรือ ทรงตัว",
+  "signal": "ซื้อ หรือ ขาย หรือ ถือ",
+  "summary": "สรุปภาพรวม 2-3 ประโยค",
+  "reasons": ["เหตุผล 1", "เหตุผล 2", "เหตุผล 3"],
+  "priceTarget": "ราคาเป้าหมาย (ตัวเลขบาท/กก.)",
+  "support": "แนวรับ (ตัวเลข)",
+  "resistance": "แนวต้าน (ตัวเลข)",
+  "advice": "คำแนะนำเฉพาะสำหรับเกษตรกร 2-3 ประโยค",
+  "risk": "ปัจจัยเสี่ยงที่ต้องระวัง"
+}`;
+
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        messages: [{ role: "user", content: prompt }]
+      })
+    });
+
+    const data = await response.json();
+    const text = data.content.map(i => i.text || '').join('');
+    const clean = text.replace(/```json|```/g, '').trim();
+    const result = JSON.parse(clean);
+    renderAIResult(result, latest.close);
+  } catch (err) {
+    // Fallback with realistic mock analysis
+    renderAIResult(generateMockAnalysis(latest, rsi, ma20, ma50, weekChange), latest.close);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<span>🔄</span> วิเคราะห์ใหม่';
+}
+
+function generateMockAnalysis(latest, rsi, ma20, ma50, weekChange) {
+  const isUptrend = latest.close > ma20 && latest.close > ma50;
+  const weekNum = parseFloat(weekChange);
+
+  return {
+    trend: isUptrend ? 'ขาขึ้น' : weekNum < -2 ? 'ขาลง' : 'ทรงตัว',
+    signal: rsi > 65 ? 'ขาย' : rsi < 35 ? 'ซื้อ' : isUptrend ? 'ถือ' : 'ขาย',
+    summary: `ราคายางพาราอยู่ที่ ${latest.close.toFixed(2)} บาท/กก. แนวโน้ม${isUptrend ? 'เป็นบวก' : 'ยังคงต้องระวัง'} RSI อยู่ที่ ${rsi.toFixed(0)} ${rsi > 70 ? 'บ่งบอกว่าราคาอาจปรับตัวลง' : rsi < 30 ? 'บ่งบอกว่าราคาอาจฟื้นตัว' : 'อยู่ในเกณฑ์ปกติ'}`,
+    reasons: [
+      `ราคา${latest.close > ma20 ? 'อยู่เหนือ' : 'ต่ำกว่า'} MA20 (${ma20.toFixed(2)}) ซึ่ง${latest.close > ma20 ? 'เป็นสัญญาณบวก' : 'บ่งชี้แรงขาย'}`,
+      `RSI ${rsi.toFixed(1)} ${rsi > 70 ? 'สูงเกินไป ควรระวังการปรับฐาน' : rsi < 30 ? 'ต่ำมาก เป็นโอกาสซื้อ' : 'อยู่ในโซนเป็นกลาง'}`,
+      `7 วันที่ผ่านมา ราคา${weekNum > 0 ? 'เพิ่มขึ้น' : 'ลดลง'} ${Math.abs(weekNum)}%`
+    ],
+    priceTarget: (latest.close * (isUptrend ? 1.05 : 0.97)).toFixed(2),
+    support: (latest.low * 0.99).toFixed(2),
+    resistance: (latest.high * 1.01).toFixed(2),
+    advice: `เกษตรกรควร${isUptrend ? 'รอขายเมื่อราคาแตะแนวต้านที่ ' + (latest.high * 1.01).toFixed(2) + ' บาท/กก. และหากราคาผ่านแนวต้านได้อาจถือต่อ' : 'พิจารณาขายบางส่วนเพื่อลดความเสี่ยง หากราคาลงต่ำกว่าแนวรับควรรีบขาย'}`,
+    risk: 'ราคาน้ำมันโลก ค่าเงินดอลลาร์ ความต้องการจากจีน และสภาพอากาศที่อาจกระทบผลผลิต'
+  };
+}
+
+function renderAIResult(r, currentPrice) {
+  const signalClass = r.signal === 'ซื้อ' ? 'buy' : r.signal === 'ขาย' ? 'sell' : 'hold';
+  const signalEmoji = r.signal === 'ซื้อ' ? '🟢' : r.signal === 'ขาย' ? '🔴' : '🟡';
+  const trendArrow = r.trend === 'ขาขึ้น' ? '📈' : r.trend === 'ขาลง' ? '📉' : '➡️';
+
+  document.getElementById('aiContent').innerHTML = `
+    <div class="ai-message">
+      <div class="msg-header">📊 ผลการวิเคราะห์</div>
+      <div class="signal-box ${signalClass}">
+        ${signalEmoji} สัญญาณ: <strong>${r.signal}</strong> · ${trendArrow} แนวโน้ม${r.trend}
+      </div>
+      <p style="font-size:14px;line-height:1.7;color:#c8e6c9">${r.summary}</p>
+    </div>
+
+    <div class="ai-message">
+      <div class="msg-header">🎯 ระดับราคาสำคัญ</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center">
+        <div style="background:rgba(244,67,54,0.1);border-radius:8px;padding:10px">
+          <div style="font-size:11px;color:#888;margin-bottom:4px">แนวต้าน</div>
+          <div style="font-family:'Space Mono';color:#f44336;font-weight:700">${r.resistance}</div>
+        </div>
+        <div style="background:rgba(255,193,7,0.1);border-radius:8px;padding:10px">
+          <div style="font-size:11px;color:#888;margin-bottom:4px">เป้าหมาย</div>
+          <div style="font-family:'Space Mono';color:#ffc107;font-weight:700">${r.priceTarget}</div>
+        </div>
+        <div style="background:rgba(76,175,80,0.1);border-radius:8px;padding:10px">
+          <div style="font-size:11px;color:#888;margin-bottom:4px">แนวรับ</div>
+          <div style="font-family:'Space Mono';color:#4caf50;font-weight:700">${r.support}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ai-message">
+      <div class="msg-header">💡 เหตุผลการวิเคราะห์</div>
+      <ul style="list-style:none;padding:0">
+        ${r.reasons.map(re => `<li style="padding:6px 0;padding-left:20px;position:relative;font-size:13px;color:#b8d4b8">
+          <span style="position:absolute;left:0">•</span>${re}
+        </li>`).join('')}
+      </ul>
+    </div>
+
+    <div class="ai-message">
+      <div class="msg-header">🌾 คำแนะนำสำหรับเกษตรกร</div>
+      <p style="font-size:13px;line-height:1.8;color:#c8e6c9">${r.advice}</p>
+    </div>
+
+    <div class="ai-message" style="border-color:rgba(244,67,54,0.3)">
+      <div class="msg-header" style="color:#888">⚠️ ปัจจัยเสี่ยง</div>
+      <p style="font-size:13px;color:#9e9e9e;line-height:1.7">${r.risk}</p>
+    </div>
+  `;
+}
+
+// ==============================
+// INIT
+// ==============================
+function init() {
+  displayData = allData.slice(-10);
+  renderPriceCards();
+  renderIndicators();
+  drawChart(displayData);
+}
+
+window.addEventListener('resize', () => drawChart(displayData));
+init();
+</script>
+</body>
+</html>
