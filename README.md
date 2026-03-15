@@ -4,4 +4,4 @@
 https://pleumpy.github.io/rubber-price-tracking-and-factory-management/rubber-factory-system.html
 
 ระบบราคายาง  
-https://pleumpy.github.io/rubber-price-tracking-and-factory-management/rubber-price-app-3.html
+https://pleumpy.github.io/rubber-price-tracking-and-factory-management/rubber-price-app.html
